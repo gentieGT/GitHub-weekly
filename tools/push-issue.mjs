@@ -1,12 +1,27 @@
 // 把某一期周报推到企业微信（Markdown 格式）
 // 用法：node push-issue.mjs [周日期] [--text]
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { sendMarkdown, sendText, formatIssue } from './notify.mjs';
 
 const ROOT = 'D:\\dsh-workspace\\gh-weekly';
 const DATA = path.join(ROOT, 'data');
 const PORT = 11436;
+
+/** 找一个手机能访问的地址：优先局域网 IP，退化到 127.0.0.1 */
+function lanBaseUrl(port) {
+  try {
+    for (const addrs of Object.values(os.networkInterfaces())) {
+      for (const a of addrs || []) {
+        if (a.family === 'IPv4' && !a.internal) {
+          return `http://${a.address}:${port}`;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return `http://127.0.0.1:${port}`;
+}
 
 const weekArg = process.argv.slice(2).find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a));
 const asText = process.argv.includes('--text');
@@ -51,9 +66,12 @@ const items = (weekly.repos || []).map((r, i) => {
 });
 
 const issue = { week, items };
-const baseUrl = `http://127.0.0.1:${PORT}/?week=${week}`;
+// 手机要能打开，必须用局域网 IP；可用 GHW_HOST 环境变量强制指定
+const host = process.env.GHW_HOST || lanBaseUrl(PORT).replace(/^https?:\/\//, '').split(':')[0];
+const baseUrl = `http://${host}:${PORT}/?week=${week}`;
 
 console.log(`推送 ${week}（${items.length} 个项目）…`);
+console.log(`链接地址: ${baseUrl}`);
 
 const r = asText
   ? await sendText(formatIssue(issue, baseUrl))

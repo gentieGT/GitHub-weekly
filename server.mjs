@@ -3,6 +3,7 @@
 
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { URL } from 'node:url';
 import { getFlags, flagOn, disabledList, DESCRIPTIONS } from './flags.mjs';
@@ -12,6 +13,8 @@ const ROOT = 'D:\\dsh-workspace\\gh-weekly';
 const DATA = path.join(ROOT, 'data');
 const INBOX = path.join(ROOT, 'inbox');
 const PORT = Number((process.argv.find((a) => a.startsWith('--port=')) || '').split('=')[1] || 11436);
+// 监听地址：默认 0.0.0.0 让手机/局域网能访问；只在本机用可传 --host=127.0.0.1
+const HOST = (process.argv.find((a) => a.startsWith('--host=')) || '').split('=')[1] || '0.0.0.0';
 
 fs.mkdirSync(INBOX, { recursive: true });
 
@@ -685,11 +688,24 @@ const server = http.createServer((req, res) => {
   res.end('not found');
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, HOST, () => {
   const issue = (() => { try { return loadIssue(); } catch { return null; } })();
   const fc = getFlags();
   const off = disabledList(fc.flags);
-  console.log(`\n  GitHub 周报已就绪： http://127.0.0.1:${PORT}`);
+  console.log(`\n  GitHub 周报已就绪`);
+  console.log(`    本机：  http://127.0.0.1:${PORT}`);
+  if (HOST === '0.0.0.0') {
+    // 列出局域网地址，手机上用这个
+    try {
+      for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+        for (const a of addrs || []) {
+          if (a.family === 'IPv4' && !a.internal) {
+            console.log(`    局域网： http://${a.address}:${PORT}   (${name}, 手机用这个)`);
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  }
   console.log(`  周期：${issue ? issue.week : '(无数据)'}   项目数：${issue ? issue.items.length : 0}`);
   console.log(`  想法收件箱：${path.join(INBOX, 'ideas.jsonl')}`);
   console.log(`  功能开关：${fc.meta.enabledCount}/${fc.meta.totalCount} 开启${off.length ? '  已关闭: ' + off.join(', ') : ''}`);
