@@ -1,0 +1,24 @@
+{
+    "_readme":  "功能开关。改 enabled 为 false 即可关闭对应功能，保存后下一个请求生效，无需重启。",
+    "_lastChanged":  "2026-11-23 21:18",
+    "flags":  {
+                  "briefing.expand":  {
+                                          "enabled":  true
+                                      },
+                  "briefing.forYou":  {
+                                          "enabled":  true
+                                      },
+                  "briefing.tags":  {
+                                        "enabled":  true
+                                    },
+                  "relevance.indicator":  {
+                                              "enabled":  true
+                                          },
+                  "ideas.submit":  {
+                                       "enabled":  true
+                                   },
+                  "reports.display":  {
+                                          "enabled":  true
+                                      }
+              }
+}

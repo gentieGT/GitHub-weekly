@@ -1,0 +1,45 @@
+# 运行时与依赖
+node_modules/
+*.log
+
+# 实践员的试验产物（每次可重建，不进版本控制）
+experiments/
+
+# 临时与备份
+*.tmp
+*.bak
+*.old
+.DS_Store
+Thumbs.db
+
+# 调试输出
+data/raw-api.json
+data/raw-trending.json
+
+# 编辑器
+.vscode/
+.idea/
+
+# ══════════════════════════════════════════════════════════════
+# 隐私：以下内容不进公开仓库
+# ══════════════════════════════════════════════════════════════
+
+# 你提交的私人想法和实践反馈
+inbox/ideas.jsonl
+inbox/reports.jsonl
+
+# 企业微信 webhook（含密钥）
+config/wecom.json
+
+# Star 状态缓存（含你的 GitHub 行为记录）
+data/star-cache.json
+
+# ══════════════════════════════════════════════════════════════
+# 以下必须提交，不要加进忽略列表
+# ══════════════════════════════════════════════════════════════
+# - data/weekly-*.json     历史榜单，是项目的数据资产
+# - data/briefings-*.json  历期简报正文，也是资产
+# - config/flags.json      功能开关默认配置（不含密钥）
+
+# 本机生成的任务定义（含真实用户名/路径），用 .template.xml 代替
+watchdog-task.xml

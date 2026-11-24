@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!--
+  计划任务模板：每 5 分钟检查 gh-weekly 服务，挂了就拉起。
+
+  使用前必须改两处：
+    1. PUT_YOUR_USER_HERE  → 你的账户，形如 DOMAIN\username 或 COMPUTERNAME\username
+                             查询：whoami
+    2. PUT_PROJECT_DIR_HERE → 项目所在目录的绝对路径，形如 D:\path\to\gh-weekly
+
+  注册命令（管理员或普通权限均可）：
+    schtasks /create /tn "GH-Weekly" /xml watchdog-task.xml /f
+
+  验证：
+    schtasks /query /tn "GH-Weekly" /fo LIST
+    schtasks /run   /tn "GH-Weekly"
+
+  说明：
+    - 用 wscript 启动，因为 Windows Terminal 会忽略 powershell -WindowStyle Hidden 而闪黑框
+    - LogonTrigger 保证开机登录后自动起
+    - TimeTrigger 每 5 分钟兜底，服务中途崩了也能自愈
+-->
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>gh-weekly reader — self-heals every 5 minutes</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <UserId>PUT_YOUR_USER_HERE</UserId>
+    </LogonTrigger>
+    <TimeTrigger>
+      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <Repetition>
+        <Interval>PT5M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>PUT_YOUR_USER_HERE</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>true</Hidden>
+    <ExecutionTimeLimit>PT2M</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>wscript.exe</Command>
+      <Arguments>"PUT_PROJECT_DIR_HERE\watchdog.vbs"</Arguments>
+      <WorkingDirectory>PUT_PROJECT_DIR_HERE</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

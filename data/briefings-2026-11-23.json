@@ -1,0 +1,96 @@
+{
+  "week": "2026-11-23",
+  "generatedBy": "DeepSeek V4.1 Flash (主编)",
+  "items": [
+    {
+      "repo": "ItsNotRexed/Leonida",
+      "summary": "用静态重编译让 GTA6 的 Xbox 版在 Windows 上原生运行",
+      "whyHot": "GTA6 热度 + 技术路线少见：不是模拟器，是把主机代码直接搬上 PC 跑",
+      "brief": "利用 Xbox Series 的 CPU 也是 x86-64 这一点，把主机版机器码直接加载到 PC 上原生执行，重写主机系统层；主机的 RDNA2 预编译着色器被翻译成 SPIR-V 交给 Vulkan。模型、贴图、音频从你自己的游戏包里读。仓库不含游戏本体、密钥或 exe，必须自备正版拷贝。代码托管在付费档后面（stars 涨得快也和这个有关）。",
+      "forYou": "技术路线跟你现在的 AI 团队无关，但「静态重编译」这个思路值得记住——它是把老平台软件复活到新平台的通用手法。",
+      "tags": ["重编译", "GTA6", "Vulkan"],
+      "relevance": "low"
+    },
+    {
+      "repo": "erkamyaman/rust-anything",
+      "summary": "把现有应用一点点改写成 Rust，每一步都拿原程序的真实行为做验证",
+      "whyHot": "「用 Rust 重写」喊了几年，它第一次给出可验证的做法：不是翻译代码，是证明行为等价",
+      "brief": "先录制原程序的行为，然后让 coding agent 分片写 Rust，每写完一片就跑回归、跟录制结果比对，通过才继续下一片。支持 TypeScript / Python / C / Go / Ruby / Java 的 CLI、HTTP 服务和库。自带 Claude Code 插件和 MCP 注册表条目，可以直接接到 agent 工作流里。MIT 协议，作者是土耳其开发者。",
+      "forYou": "方法论比工具本身更值钱：**「先录制真实行为，再分片替换，每片都验证」**——这套思路可以直接套用到你让 agent 改任何老代码上。",
+      "tags": ["Rust", "重构", "agent", "MCP"],
+      "relevance": "medium"
+    },
+    {
+      "repo": "bookwjitchieni1986/blender-ai-mcp-addon",
+      "summary": "给 Blender 装一个 AI 助手 + 内置 MCP 服务器，用自然语言改场景",
+      "whyHot": "3D 工作流第一次有了「对话式操作」的标准入口（MCP），且不绑定单一模型",
+      "brief": "Blender 插件形态。能检查当前场景、创建物体、改材质、查找资产、执行多步工作流，带一个可视化聊天工作区。内置 Model Context Protocol 服务器，可接 ChatGPT、Claude、Gemini、Ollama、OpenCode。等于把「说一句话 → 场景被改好」打通，且你的模型自己选。",
+      "forYou": "**这个你直接能用**：你有 Blender 5.3，也有一堆 blender-* 技能。装上它之后，DSH 可以走 MCP 直接操作 Blender 场景，比现在纯 Python 脚本更稳。",
+      "tags": ["Blender", "MCP", "3D", "AI"],
+      "relevance": "high"
+    },
+    {
+      "repo": "iamajmeena/neonclipping",
+      "summary": "粘一个长视频链接，约 2 分钟出带字幕的 9:16 竖屏切片",
+      "whyHot": "全本地、免费、不要账号——正好戳中做短视频的人「不想上传素材」的痛点",
+      "brief": "把 YouTube / Twitch / Kick 的长视频（或本地 MP4）切成竖屏带字幕的片段，每片自动配标题和钩子（hook）。音频优先处理 + YouTube 字幕 + 本地 LLM 生成文案。全程本机运行，不上传、不订阅、零 API 成本。实测 85 分钟直播 97 秒切完。Windows 有一键安装包。",
+      "forYou": "**跟你做抖音内容直接对上**。你之前搭过抖音视频转写管道，这个能补上「切片 + 竖屏 + 字幕 + 钩子」那一段，而且免费本地跑。",
+      "tags": ["视频", "切片", "短视频", "本地"],
+      "relevance": "high"
+    },
+    {
+      "repo": "EL4CTEO/fast-anything",
+      "summary": "不重写整个应用，只把最慢的 5% 用 Rust 重写，并证明结果一致",
+      "whyHot": "对「重写整个项目」的反驳，且给了自动化的落地路径（探测热点 + 验证 + 可回滚）",
+      "brief": "自动 profile Python / Node / Ruby 应用，找出真正耗时的少数函数，让你的 coding agent 只把这几段移植成 Rust，用真实调用的录制结果验证输出一致，然后替换进去。一条命令，完全可逆。用你本机的 Rust 工具链编译。跟 rust-anything 是同一波思路的两个方向：一个整包迁移，一个精准打击。",
+      "forYou": "你的 Python 脚本（比如视频转写、嵌入服务）如果嫌慢，这个比整体重写现实得多。先 profile 再动手，这个习惯本身也对。",
+      "tags": ["Rust", "性能", "profile"],
+      "relevance": "medium"
+    },
+    {
+      "repo": "sybil-solutions/inference-optimisation-skill",
+      "summary": "一个 agent skill：教它用「爬山法」把本地 LLM 推理速度调到最优",
+      "whyHot": "大多数人调本地模型靠抄参数，它把整套实验方法论写成了可执行的 skill",
+      "brief": "覆盖单用户/并发解码、投机解码、prefill、KV cache 大小、启动时间和首字延迟（TTFT）。在内存上限约束下工作，每个结果都要通过长上下文稳定性检查。方法论很硬：先算理论上限 → 一次只改一个变量 → 用交错对照组测量 → 记录包括失败在内的所有结果 → 长上下文检索门禁 → 固化一个干净的固定版本。明确说「这不是参数清单，是我们真实的加速过程」。",
+      "forYou": "**你本机有 Ollama**，这套 skill 可以直接拿来给本地模型调优；更值钱的是那套「一次只改一个变量 + 记录失败」的实验纪律。",
+      "tags": ["LLM", "推理优化", "skill", "Ollama"],
+      "relevance": "high"
+    },
+    {
+      "repo": "omonkeyz/xbox-emulator",
+      "summary": "在 PC 上跑 Xbox Series X|S 游戏的运行时（TomBox 的续作）",
+      "whyHot": "主机模拟浪潮的延续，且明确只做「已解密 dump」的运行时",
+      "brief": "重实现主机的平台层：Xbox 版 Direct3D 12、预编译的 RDNA2 着色器、统一内存纹理、系统库，让已经解密的 Xbox Series 游戏作为普通 Windows 进程运行。不绑定单一游戏，仓库跟踪新游戏适配、平台调用扩展、着色器阶段解锁。明确声明不做密钥提取和包解密。",
+      "forYou": "没有直接用处，属于这一周的主机模拟热潮。知道有这回事就行。",
+      "tags": ["模拟器", "Xbox", "Rust"],
+      "relevance": "low"
+    },
+    {
+      "repo": "R0Y00/Xbox2Windows",
+      "summary": "GTA6 静态重编译研究：x64 机器码转 C++、着色器转 DXIL",
+      "whyHot": "跟 Leonida 同一波，但更偏研究记录而不是可用成品",
+      "brief": "把 Xbox Series X|S（Scarlett）的选定 x64 机器码翻译成 C++，把 gfx1013 着色器翻译成桌面 DXIL。公开测试自己构造输入、不需要装游戏就能跑。现状：源码构建的程序能从入口跑到退出，但主可执行文件不在被检查的包里，完整游戏启动和帧率都还没验证。",
+      "forYou": "研究性质，无直接用处。但「机器码 → C++」的转译路线，跟你做逆向分析时的思路是通的。",
+      "tags": ["重编译", "逆向", "研究"],
+      "relevance": "low"
+    },
+    {
+      "repo": "Lemxy/WinRust",
+      "summary": "用 Rust 重写 Windows 外壳：任务栏、资源管理器、搜索、任务管理器",
+      "whyHot": "「系统级替代品」一直是高星题材，且它真的能一键装/卸",
+      "brief": "用 Rust 写的一批小原生程序（无 .NET、无 Electron），替换 Windows 的任务栏、文件资源管理器、文件搜索、任务管理器，外加磁盘清理、磁盘地图、看图。一个安装器装上，一个按钮全卸。代价：会关掉 Windows Search、隐藏任务栏、可能停掉 Explorer；exe 未签名会被 SmartScreen 警告；安装前会建还原点，但作者建议先在虚拟机或备用机试。",
+      "forYou": "想给 Windows 减肥提速可以试，但它动的是 shell，建议**先在虚拟机里跑**，别直接上主力机。",
+      "tags": ["Windows", "Rust", "shell"],
+      "relevance": "low"
+    },
+    {
+      "repo": "chuanqisun/spaceship",
+      "summary": "一个实验性 IDE：像开飞船一样操纵你的想法",
+      "whyHot": "概念作品，探索「LLM 达到 60 FPS 交互后」界面该长什么样",
+      "brief": "作者的前提判断是：LLM 和决策模型很快会达到 60 FPS 的交互速度，那时会解锁什么新的交互范式？这个项目给出了一种答案——把「想法」当成可以驾驶的物体，用「焦点监视器」之类的机制让模型持续感知你关注什么。在线 demo 可用自己的 Cerebras / Gemini key，key 只存浏览器本地。",
+      "forYou": "灵感类。如果你以后要给周报或知识库做交互界面，它那种「把信息做成可驾驶对象」的思路可以借。",
+      "tags": ["交互设计", "实验", "LLM"],
+      "relevance": "medium"
+    }
+  ]
+}
