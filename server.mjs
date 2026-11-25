@@ -338,6 +338,115 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:#
 .flagbar{background:#2d2412;border:1px solid #9e6a03;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#f0d9a0}
 .flagbar b{color:#e3b341}
 .flagbar code{background:#1c2128;padding:1px 5px;border-radius:4px;color:#e3b341;font-size:11px}
+
+/* ══════════════════════════════════════════════════════════════
+   响应式：手机 / 窄屏
+   问题背景：左侧历史栏固定 190px + 内容区 flex:1，手机上
+   190px 占了近半屏，右侧内容被挤成一列竖排。
+   ══════════════════════════════════════════════════════════════ */
+
+/* 平板及以下：历史栏收窄 */
+@media (max-width: 1024px) {
+  .weeks{flex:0 0 150px}
+  .wcard{padding:9px 12px}
+  .wcard .wk{font-size:12px}
+  .wcard .wt{font-size:10px}
+}
+
+/* 手机：历史栏改成顶部横向滚动条，内容占满宽度 */
+@media (max-width: 720px) {
+  /* 全局禁止横向溢出，长仓库名/长单词强制换行 */
+  html,body{max-width:100%;overflow-x:hidden}
+  *{word-break:break-word;overflow-wrap:anywhere}
+
+  .layout{flex-direction:column;min-height:auto}
+  .weeks{
+    flex:none;
+    width:100%;
+    height:auto;
+    position:static;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    padding:10px 0 8px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    white-space:nowrap;
+    -webkit-overflow-scrolling:touch;
+  }
+  .weeks-hd{padding:0 12px 8px;font-size:10px}
+  /* 周卡变成横排的小药丸 */
+  .wcard{
+    display:inline-block;
+    vertical-align:top;
+    width:auto;
+    min-width:112px;
+    padding:7px 12px;
+    border-left:none;
+    border-bottom:2px solid transparent;
+    border-radius:8px;
+    margin:0 6px;
+  }
+  .wcard.on{border-left:none;border-bottom-color:var(--acc)}
+  .wcard .wk{font-size:12.5px}
+  .wcard .wt{font-size:10px;margin-top:1px}
+  .wcard.more{margin-top:0;padding-top:7px;border-top:none}
+
+  .main-col{width:100%}
+  .wrap{padding:16px 12px 48px}
+
+  /* 标题缩一档 */
+  h1{font-size:20px;line-height:1.3}
+  .sub{font-size:12px;line-height:1.5}
+
+  /* 卡片：排名徽章和内容并排，按钮换行到下面 */
+  .head{padding:13px 14px;gap:10px;flex-wrap:wrap}
+  .rank{flex:0 0 26px;height:26px;font-size:12px}
+  .title{font-size:15px;word-break:break-word}
+  .sum{font-size:13px;margin-bottom:6px}
+  .toggle{
+    flex:1 0 100%;
+    margin-top:8px;
+    text-align:center;
+    padding:7px 12px;
+  }
+  .body{padding:0 14px 14px 14px}
+
+  /* 展开区 */
+  .sec p{font-size:13px;line-height:1.6}
+  .sec.hl{padding:9px 11px}
+
+  /* Star 行：按钮和链接各占一行更好点 */
+  .starrow{flex-wrap:wrap;gap:10px;margin:12px 0 10px}
+  .starbtn{padding:8px 16px;font-size:13px}
+  .repoLink{font-size:11.5px}
+
+  /* 输入区 */
+  .composer{flex-direction:column;gap:8px}
+  .composer textarea{min-height:64px;font-size:14px}
+  .composer button{width:100%;padding:10px;font-size:14px}
+
+  /* 搜索面板全屏化 */
+  .search-box{width:100%;max-width:100%;max-height:92vh;border-radius:12px 12px 0 0}
+  .search-panel{align-items:flex-end}
+  .search-inputs input{font-size:15px;padding:10px}
+
+  /* 告警条 */
+  .flagbar{font-size:11px;padding:9px 11px;line-height:1.5}
+}
+
+/* 超窄屏（≤380px）再收一档 */
+@media (max-width: 380px) {
+  .wrap{padding:12px 9px 40px}
+  h1{font-size:18px}
+  .chip{font-size:11px;padding:1px 7px}
+  .wcard{min-width:100px;padding:6px 10px}
+}
+
+/* 触屏设备：去掉 hover 效果带来的粘滞感 */
+@media (hover: none) {
+  .card:hover{border-color:var(--line)}
+  .toggle:hover,.starbtn:hover{border-color:var(--line)}
+}
 </style></head>
 <body>
 <div class="layout">
