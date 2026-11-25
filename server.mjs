@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { URL } from 'node:url';
 import { getFlags, flagOn, disabledList, DESCRIPTIONS } from './flags.mjs';
-import { getStarState, getStarStates, setStar, getToken } from './tools/star.mjs';
+import { getStarState, getStarStates, setStar, getToken, readStarCache } from './tools/star.mjs';
 
 const ROOT = 'D:\\dsh-workspace\\gh-weekly';
 const DATA = path.join(ROOT, 'data');
@@ -79,6 +79,99 @@ function loadIssue(weekParam) {
   return { week, generatedAt: weekly.generatedAt, since: weekly.since, items };
 }
 
+/** 收集「我的」页面数据：我 star 的 + 我留过想法的 */
+function buildMine() {
+  // 1. star 过的仓库（只取 true 的）
+  const cache = readStarCache();
+  const starred = Object.entries(cache)
+    .filter(([, v]) => v && v.starred === true)
+    .map(([repo, v]) => ({ repo, starredAt: v.at ? new Date(v.at).toISOString() : null }))
+    .sort((a, b) => String(b.starredAt || '').localeCompare(String(a.starredAt || '')));
+
+  // 2. 留过想法的（按 repo 聚合，带上实践反馈）
+  const ideas = readIdeas();
+  const reports = readReports();
+
+  const byRepo = new Map();
+  for (const it of ideas) {
+    if (!byRepo.has(it.repo)) byRepo.set(it.repo, []);
+    const rp = reports[it.at];
+    byRepo.get(it.repo).push({
+      text: it.text,
+      at: it.at,
+      status: rp ? 'done' : 'pending',
+      report: rp ? rp.report : null,
+      reportAt: rp ? rp.at : null,
+    });
+  }
+
+  // 找出每个 repo 出现在哪一期（用于跳转）
+  const weeks = listWeeks();
+  const repoWeek = {};
+  const repoInfo = {};
+  for (const w of weeks) {
+    try {
+      const weekly = JSON.parse(fs.readFileSync(w.path, 'utf8'));
+      let briefMap = {};
+      const bf = path.join(DATA, `briefings-${w.week}.json`);
+      if (fs.existsSync(bf)) {
+        const b = JSON.parse(fs.readFileSync(bf, 'utf8'));
+        for (const x of b.items || []) briefMap[x.repo] = x;
+      }
+      for (const r of weekly.repos || []) {
+        if (!repoWeek[r.repo]) {
+          const b = briefMap[r.repo] || {};
+          repoWeek[r.repo] = w.week;
+          repoInfo[r.repo] = {
+            rank: (weekly.repos || []).findIndex((x) => x.repo === r.repo) + 1,
+            url: r.url || `https://github.com/${r.repo}`,
+            lang: r.lang || '',
+            stars: r.stars || 0,
+            summary: b.summary || r.desc || '',
+          };
+        }
+      }
+    } catch { /* 跳过坏文件 */ }
+  }
+
+  const withIdeas = [...byRepo.entries()]
+    .map(([repo, list]) => ({
+      repo,
+      count: list.length,
+      pending: list.filter((x) => x.status === 'pending').length,
+      done: list.filter((x) => x.status === 'done').length,
+      latestAt: list.map((x) => x.at).sort().slice(-1)[0],
+      week: repoWeek[repo] || null,
+      info: repoInfo[repo] || null,
+      items: list.sort((a, b) => String(b.at).localeCompare(String(a.at))),
+    }))
+    .sort((a, b) => String(b.latestAt).localeCompare(String(a.latestAt)));
+
+  // star 的仓库也补上那期信息
+  const starredFull = starred.map((s) => ({
+    ...s,
+    week: repoWeek[s.repo] || null,
+    info: repoInfo[s.repo] || null,
+    hasIdea: byRepo.has(s.repo),
+  }));
+
+  return {
+    starred: starredFull,
+    ideas: withIdeas,
+    stats: {
+      starred: starredFull.length,
+      ideaRepos: withIdeas.length,
+      ideaCount: ideas.length,
+      pending: ideas.filter((x) => !reports[x.at]).length,
+    },
+  };
+}
+
+/// 把 owner/name 变成合法 HTML id（斜杠等字符替换掉）
+function anchorId(repo) {
+  return String(repo || '').replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -107,6 +200,140 @@ function readReports() {
   return map;
 }
 
+/** 「我的」页面：我 star 的 + 我留过想法的 */
+function renderMine(fc) {
+  const F = (fc && fc.flags) || {};
+  const mine = buildMine();
+  const s = mine.stats;
+
+  const repoCard = (repo, info, week, extra) => {
+    const title = info ? esc(info.summary || repo) : '';
+    const meta = [];
+    if (info && info.lang) meta.push(`<span class="chip">${esc(info.lang)}</span>`);
+    if (info && info.stars) meta.push(`<span class="chip">★ ${info.stars.toLocaleString()}</span>`);
+    if (week) meta.push(`<span class="chip wk-chip">${esc(week)}</span>`);
+    return `
+    <article class="mine-card">
+      <div class="mine-head">
+        <a class="mine-repo" href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>
+        ${extra || ''}
+      </div>
+      ${title ? `<div class="mine-sum">${title}</div>` : ''}
+      <div class="mine-meta">${meta.join('')}</div>
+      ${week ? `<div class="mine-jump"><a href="/?week=${encodeURIComponent(week)}#${anchorId(repo)}">回到那一期 ↗</a></div>` : ''}
+    </article>`;
+  };
+
+  const starredHtml = mine.starred.length
+    ? mine.starred.map((x) => repoCard(x.repo, x.info, x.week,
+        x.hasIdea ? `<span class="badge idea">有想法</span>` : '')).join('')
+    : `<div class="mine-empty">还没有 star 过项目。<br><span class="dim">在周报里展开卡片，点 ☆ Star 就会出现在这里。</span></div>`;
+
+  const ideasHtml = mine.ideas.length
+    ? mine.ideas.map((g) => {
+        const items = g.items.map((it) => `
+          <div class="idea-item ${it.status}">
+            <div class="idea-text">${esc(it.text)}</div>
+            <div class="idea-time">${esc(String(it.at).slice(0, 16).replace('T', ' '))}</div>
+            ${it.status === 'done'
+              ? `<div class="idea-report"><b>实践反馈</b><div>${esc(it.report || '')}</div></div>`
+              : `<div class="idea-pending">⏳ 等待实践员处理</div>`}
+          </div>`).join('');
+        return `
+        <article class="mine-card">
+          <div class="mine-head">
+            <a class="mine-repo" href="https://github.com/${esc(g.repo)}" target="_blank" rel="noopener">${esc(g.repo)}</a>
+            <span class="badge ${g.pending ? 'pending' : 'done'}">${g.pending ? g.pending + ' 待处理' : '已处理'}</span>
+          </div>
+          ${g.info && g.info.summary ? `<div class="mine-sum">${esc(g.info.summary)}</div>` : ''}
+          <div class="mine-meta">
+            ${g.week ? `<span class="chip wk-chip">${esc(g.week)}</span>` : ''}
+            <span class="chip">${g.count} 条想法</span>
+          </div>
+          <div class="idea-list">${items}</div>
+          ${g.week ? `<div class="mine-jump"><a href="/?week=${encodeURIComponent(g.week)}#${anchorId(g.repo)}">回到那一期 ↗</a></div>` : ''}
+        </article>`;
+      }).join('')
+    : `<div class="mine-empty">还没有留过想法。<br><span class="dim">展开任意卡片，在底部输入想法就会出现在这里。</span></div>`;
+
+  return `<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>我的 · GitHub 周报</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--fg:#e6edf3;--dim:#8b949e;--acc:#58a6ff;--ok:#3fb950;--warn:#d29922}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.top h1{margin:0;font-size:22px;letter-spacing:-.3px;flex:1}
+.top a{color:var(--dim);font-size:13px;text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px}
+.top a:hover{color:var(--fg);border-color:#484f58}
+.stats{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
+.stat{flex:1;min-width:100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+.stat b{display:block;font-size:21px;font-weight:600;line-height:1.25}
+.stat span{font-size:11px;color:var(--dim)}
+h2{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:26px 0 12px;font-weight:600;display:flex;align-items:center;gap:8px}
+h2 .n{background:#21262d;color:var(--fg);border-radius:20px;padding:1px 8px;font-size:11px;letter-spacing:0}
+.mine-card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:9px}
+.mine-card:hover{border-color:#484f58}
+.mine-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px}
+.mine-repo{font-weight:600;font-size:14.5px;color:var(--fg);text-decoration:none;word-break:break-word}
+.mine-repo:hover{color:var(--acc)}
+.badge{font-size:10.5px;border-radius:20px;padding:1px 8px;white-space:nowrap}
+.badge.idea{background:#0d2847;color:var(--acc)}
+.badge.pending{background:#2d2412;color:#e3b341}
+.badge.done{background:#12261a;color:var(--ok)}
+.mine-sum{font-size:13px;color:#c9d1d9;margin-bottom:7px;line-height:1.5}
+.mine-meta{display:flex;gap:6px;flex-wrap:wrap;font-size:11px}
+.chip{background:#21262d;color:var(--dim);padding:1px 8px;border-radius:20px}
+.wk-chip{background:#161b22;border:1px solid var(--line)}
+.mine-jump{margin-top:8px;font-size:12px}
+.mine-jump a{color:var(--acc);text-decoration:none}
+.mine-jump a:hover{text-decoration:underline}
+.mine-empty{background:var(--card);border:1px dashed var(--line);border-radius:11px;padding:26px;text-align:center;font-size:13px;color:var(--dim);line-height:1.8}
+.dim{color:#484f58;font-size:12px}
+.idea-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.idea-item{background:#0d1117;border-left:3px solid var(--line);border-radius:6px;padding:9px 11px}
+.idea-item.pending{border-left-color:var(--warn)}
+.idea-item.done{border-left-color:var(--ok)}
+.idea-text{font-size:13px;color:#c9d1d9;line-height:1.55}
+.idea-time{font-size:10.5px;color:#484f58;margin-top:3px}
+.idea-pending{font-size:11.5px;color:var(--dim);margin-top:6px}
+.idea-report{margin-top:7px;padding-top:7px;border-top:1px solid var(--line)}
+.idea-report b{font-size:11px;color:var(--ok);display:block;margin-bottom:3px}
+.idea-report div{font-size:12.5px;color:#c9d1d9;white-space:pre-wrap;line-height:1.6;max-height:14em;overflow-y:auto}
+@media (max-width: 720px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .wrap{padding:16px 12px 48px}
+  .top h1{font-size:19px}
+  .stat b{font-size:18px}
+  .idea-report div{max-height:18em}
+}
+</style></head>
+<body><div class="wrap">
+  <div class="top">
+    <h1>我的</h1>
+    <a href="/">← 回周报</a>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b style="color:var(--warn)">${s.starred}</b><span>Star 过的</span></div>
+    <div class="stat"><b style="color:var(--acc)">${s.ideaRepos}</b><span>留过想法的项目</span></div>
+    <div class="stat"><b>${s.ideaCount}</b><span>想法总数</span></div>
+    <div class="stat"><b style="color:${s.pending ? 'var(--warn)' : 'var(--ok)'}">${s.pending}</b><span>等待处理</span></div>
+  </div>
+
+  <h2>我 Star 的项目 <span class="n">${mine.starred.length}</span></h2>
+  ${starredHtml}
+
+  <h2>我留过想法的 <span class="n">${mine.ideas.length}</span></h2>
+  ${ideasHtml}
+</div>
+</body></html>`;
+}
+
 function renderPage(issue, fc) {
   if (!issue) {
     return `<!doctype html><meta charset="utf-8"><title>周报</title>
@@ -131,6 +358,15 @@ function renderPage(issue, fc) {
       <div class="wt">${on ? '当前查看' : '查看该周'}</div>
     </div>`;
   }).join('');
+
+  // ── 「我的」入口的待处理角标 ──
+  let mineBadge = '';
+  try {
+    const m = buildMine();
+    if (m.stats.pending > 0) {
+      mineBadge = `<span class="mine-badge">${m.stats.pending}</span>`;
+    }
+  } catch { /* 拿不到就不显示角标 */ }
 
   const cards = issue.items.map((it) => {
     // ── 原逻辑：相关度圆点（关闭后不渲染该元素）
@@ -183,7 +419,7 @@ function renderPage(issue, fc) {
           </div>`
         : '';
       return `
-    <article class="card flat" data-repo="${esc(it.repo)}">
+    <article class="card flat" id="${anchorId(it.repo)}" data-repo="${esc(it.repo)}">
       <div class="head static">
         <div class="rank">${it.rank}</div>
         <div class="main">
@@ -211,7 +447,7 @@ function renderPage(issue, fc) {
       </div>`;
 
     return `
-    <article class="card" data-repo="${esc(it.repo)}">
+    <article class="card" id="${anchorId(it.repo)}" data-repo="${esc(it.repo)}">
       <div class="head" onclick="toggleCard(event, this)">
         <div class="rank">${it.rank}</div>
         <div class="main">
@@ -289,6 +525,20 @@ header{margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line
 h1{margin:0 0 6px;font-size:26px;letter-spacing:-.3px}
 .sub{color:var(--dim);font-size:13px}
 .count{color:var(--acc)}
+/* ── 「我的」入口（右上角）── */
+.hdr-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:6px}
+.hdr-row h1{flex:1;min-width:0}
+.mine-link{
+  flex:none;display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;color:var(--dim);text-decoration:none;
+  padding:6px 12px;border:1px solid var(--line);border-radius:8px;
+  white-space:nowrap;transition:all .15s;
+}
+.mine-link:hover{color:var(--fg);border-color:#484f58;background:#161b22}
+.mine-badge{
+  background:var(--warn);color:#0d1117;border-radius:20px;
+  padding:0 6px;font-size:10.5px;font-weight:600;line-height:16px;
+}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden;transition:border-color .15s}
 .card:hover{border-color:#484f58}
 .head{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;cursor:pointer}
@@ -468,7 +718,15 @@ ${(() => {
     `<br>改 <code>config/flags.json</code> 即可恢复，无需重启。</div>`;
 })()}
 <header>
-  <h1>GitHub 周热榜 · ${esc(issue.week)}</h1>
+  <div class="hdr-row">
+    <h1>GitHub 周热榜 · ${esc(issue.week)}</h1>
+    <a class="mine-link" href="/mine" title="我 Star 的项目和我留过想法的">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      我的${mineBadge}
+    </a>
+  </div>
   <div class="sub">本周新建且 star 增长最快的 <span class="count">${issue.items.length}</span> 个项目 · 统计起始 ${esc(issue.since)} · 点击卡片看简报，有想法直接写在下面</div>
 </header>
 ${cards}
@@ -600,6 +858,22 @@ document.getElementById('qKeyword').addEventListener('input', ()=>{
 });
 document.getElementById('qDate').addEventListener('change', runSearch);
 
+// ── 带锚点跳过来时，自动展开对应卡片 ──
+(function openFromHash(){
+  if(!location.hash) return;
+  const id = decodeURIComponent(location.hash.slice(1));
+  if(!id) return;
+  const card = document.getElementById(id);
+  if(!card) return;
+  if(!card.classList.contains('open')){
+    card.classList.add('open');
+    const btn = card.querySelector('.toggle');
+    if(btn) btn.textContent = '收起 ▴';
+  }
+  // 等布局稳定后滚动过去
+  setTimeout(()=>{ card.scrollIntoView({ block:'center', behavior:'smooth' }); }, 150);
+})();
+
 async function submitIdea(btn){
   const card = btn.closest('.card');
   const ta = card.querySelector('textarea');
@@ -641,6 +915,13 @@ const server = http.createServer((req, res) => {
     const html = renderPage(issue, fc);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
+    return;
+  }
+
+  if (req.method === 'GET' && u.pathname === '/mine') {
+    const fc = getFlags();
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(renderMine(fc));
     return;
   }
 

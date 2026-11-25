@@ -37,7 +37,7 @@ function headers() {
 }
 
 // ── 状态缓存（避免每次打开页面都打 API）──────────────────────
-function readCache() {
+export function readStarCache() {
   try { return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')); } catch { return {}; }
 }
 function writeCache(obj) {
@@ -51,7 +51,7 @@ const TTL_MS = 5 * 60 * 1000; // 5 分钟内不重复查
 
 /** 查某个仓库的 star 状态（带缓存） */
 export async function getStarState(repo) {
-  const cache = readCache();
+  const cache = readStarCache();
   const hit = cache[repo];
   if (hit && Date.now() - hit.at < TTL_MS) return { starred: hit.starred, cached: true };
 
@@ -100,7 +100,7 @@ export async function setStar(repo, starred) {
     });
 
     if (r.status === 204) {
-      const cache = readCache();
+      const cache = readStarCache();
       cache[repo] = { starred, at: Date.now() };
       writeCache(cache);
       return { ok: true, starred };
@@ -108,7 +108,7 @@ export async function setStar(repo, starred) {
 
     // PUT 重复 star 会返回 304，视为成功
     if (starred && r.status === 304) {
-      const cache = readCache();
+      const cache = readStarCache();
       cache[repo] = { starred: true, at: Date.now() };
       writeCache(cache);
       return { ok: true, starred: true, note: '本来就已经 star 过' };
